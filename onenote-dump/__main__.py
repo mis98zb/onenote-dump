@@ -34,18 +34,19 @@ def main():
     pages = 0
     try:
         for page_count, page in enumerate(
-            onenote.get_notebook_pages(s, args.notebook), 1
+            onenote.get_notebook_pages(s, args.notebook, args.section), 1
         ):
+            if args.max_pages and page_count > args.max_pages:
+                break
+
             log_msg = f'Page {page_count}: {page["title"]}'
             if args.start_page is None or page_count >= args.start_page:
                 logger.info(log_msg)
                 pipe.add_page(page)
                 pages += 1
+                time.sleep(random.randint(3, 10))
             else:
                 logger.info(log_msg + ' [skipped]')
-            if args.max_pages and page_count > args.max_pages:
-                break
-            time.sleep(random.randint(3,10))
     except onenote.NotebookNotFound as e:
         logger.error(str(e))
 
@@ -57,8 +58,9 @@ def main():
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('notebook', help='display name of notebook to dump')
     parser.add_argument('output_dir', help='directory to which to output')
+    parser.add_argument('notebook', help='display name of notebook to dump')
+    parser.add_argument('section', help='display name of section to dump. if * is given, all sections will be dump.')
     parser.add_argument(
         '-m', '--max-pages', type=int, help='max pages to dump'
     )

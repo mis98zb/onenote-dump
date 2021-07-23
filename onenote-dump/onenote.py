@@ -1,4 +1,5 @@
 import logging
+import time
 from datetime import timedelta
 from requests import Session
 from tenacity import retry, retry_if_exception, wait_exponential
@@ -25,12 +26,12 @@ class NotebookNotFound(Exception):
                 return 'Possible notebooks unknown.'
 
 
-def get_notebook_pages(s: Session, notebook_display_name):
+def get_notebook_pages(s: Session, notebook_display_name, section_display_name = '*'):
     notebooks = get_notebooks(s)
     notebook = find_notebook(notebooks, notebook_display_name)
     if notebook is None:
         raise NotebookNotFound(notebook_display_name, s)
-    yield from get_pages(s, notebook)
+    yield from get_pages(s, notebook, section_display_name)
 
 
 def get_notebooks(s: Session):
@@ -58,8 +59,13 @@ def get_sections(s: Session, parent):
             yield from get_sections(s, section_group)
 
 
-def get_pages(s: Session, notebook):
+def get_pages(s: Session, notebook, section_display_name = None):
     for section in get_sections(s, notebook):
+        sectionName = section['displayName']
+        if (section_display_name != '*' and sectionName != section_display_name) :
+            continue
+
+        logger.info(f"=================== section: {sectionName} ===================")
         url = section['pagesUrl']
         while url:
             pages = _get_json(s, url)
