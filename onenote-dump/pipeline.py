@@ -15,10 +15,8 @@ class Pipeline:
         self.notebook = notebook
         self.filename_re = re.compile(r'[<>:\"/\\\|\?\*#]')
         self.whitespace_re = re.compile(r'\s+')
-        self.notes_dir = out_dir / 'notes'
-        self.notes_dir.mkdir(parents=True, exist_ok=True)
-        self.attach_dir = out_dir / 'attachments'
-        self.attach_dir.mkdir(parents=True, exist_ok=True)
+        self.out_dir = out_dir
+        self.out_dir.mkdir(parents=True, exist_ok=True)
         self.executors = [
             ThreadPoolExecutor(math.ceil(max_workers / 3), 'PipelinePage'),
             ThreadPoolExecutor(math.floor(max_workers / 3), 'PipelineConvert'),
@@ -31,8 +29,11 @@ class Pipeline:
 
     def _submit_conversion(self, future: Future):
         page, content = future.result()
+
+        attach_dir = self.out_dir  / page['parentSection']['displayName'] / (self._filenamify(page['title']) + '.assets')
+        # does not mkdir here, only when attachment found.
         future = self.executors[1].submit(
-            convert_page, page, content, self.notebook, self.s, self.attach_dir
+            convert_page, page, content, self.notebook, self.s, attach_dir
         )
         future.add_done_callback(self._submit_save)
 
@@ -42,7 +43,7 @@ class Pipeline:
         return future.result()
 
     def _save_page(self, page, content):
-        path = self.notes_dir / (self._filenamify(page['title']) + '.md')
+        path = self.out_dir  / page['parentSection']['displayName'] / (self._filenamify(page['title']) + '.md')
         path.write_text(content, encoding='utf-8')
 
     def _filenamify(self, s):

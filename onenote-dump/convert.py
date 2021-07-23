@@ -218,19 +218,21 @@ def next_sibling_tag(element):
 
 
 def download_img(s, url, mime_type, attach_dir):
+    attach_dir.mkdir(parents=True, exist_ok=True)
     data = get_attachment(s, url) if s else b' '
     extension = mimetypes.guess_extension(mime_type)
     name = str(uuid.uuid4())
     path = attach_dir / (name + extension)
     path.write_bytes(data)
-    return f'@attachment/{name}{extension}'
+    return f"{attach_dir.as_uri().split('/')[-1]}/{name}{extension}"
 
 
 def download_object(s, url, filename, attach_dir):
+    attach_dir.mkdir(parents=True, exist_ok=True)
     data = get_attachment(s, url) if s else b' '
     path = attach_dir / filename
     path.write_bytes(data)
-    return f'@attachment/{filename}'
+    return f"{attach_dir.as_uri().split('/')[-1]}/{filename}"
 
 
 def convert_page(page, content, notebook, one_note_session, attach_dir):
