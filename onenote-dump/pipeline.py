@@ -9,7 +9,7 @@ from convert import convert_page
 
 class Pipeline:
     def __init__(
-        self, onenote_session, notebook: str, out_dir: Path, max_workers=10
+        self, onenote_session, notebook: str, out_dir: Path, parallel=3
     ):
         self.s = onenote_session
         self.notebook = notebook
@@ -18,9 +18,9 @@ class Pipeline:
         self.out_dir = out_dir
         self.out_dir.mkdir(parents=True, exist_ok=True)
         self.executors = [
-            ThreadPoolExecutor(math.ceil(max_workers / 3), 'PipelinePage'),
-            ThreadPoolExecutor(math.floor(max_workers / 3), 'PipelineConvert'),
-            ThreadPoolExecutor(math.floor(max_workers / 3), 'PipelineSave'),
+            ThreadPoolExecutor(parallel, 'PipelinePage'),
+            ThreadPoolExecutor(parallel * 2, 'PipelineConvert'),
+            ThreadPoolExecutor(parallel, 'PipelineSave'),
         ]
 
     def add_page(self, page: dict):

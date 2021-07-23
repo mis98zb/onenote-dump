@@ -3,7 +3,7 @@ import logging
 import os
 import pathlib
 import time
-
+import random
 import log
 import onenote_auth
 import onenote
@@ -30,7 +30,7 @@ def main():
     logger.info('Writing to "%s"', output_dir)
 
     start_time = time.perf_counter()
-    pipe = pipeline.Pipeline(s, args.notebook, output_dir)
+    pipe = pipeline.Pipeline(s, args.notebook, output_dir, 1)
     pages = 0
     try:
         for page_count, page in enumerate(
@@ -45,6 +45,7 @@ def main():
                 logger.info(log_msg + ' [skipped]')
             if args.max_pages and page_count > args.max_pages:
                 break
+            time.sleep(random.randint(3,10))
     except onenote.NotebookNotFound as e:
         logger.error(str(e))
 
