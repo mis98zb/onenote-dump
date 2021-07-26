@@ -1,5 +1,5 @@
 import logging
-import time
+import pathlib
 from datetime import timedelta
 from requests import Session
 from tenacity import retry, retry_if_exception, wait_exponential
@@ -7,7 +7,6 @@ from tenacity import retry, retry_if_exception, wait_exponential
 BASE_URL = 'https://graph.microsoft.com/v1.0/me/onenote/'
 
 logger = logging.getLogger(__name__)
-
 
 class NotebookNotFound(Exception):
     def __init__(self, name, s: Session = None):
@@ -45,18 +44,30 @@ def find_notebook(notebooks, display_name):
     return None
 
 
-def get_sections(s: Session, parent):
+def get_sections(s: Session, parent, related_path = None):
     """Get all sections, recursively."""
+    # section
     url = parent.get('sectionsUrl')
     if url:
         sections = _get_json(s, url)
         for section in sections['value']:
+            if related_path:
+                section['output_path'] = related_path / section['displayName']
+            else:
+                section['output_path'] = pathlib.Path(section['displayName'])
             yield section
+
+    # section group
     url = parent.get('sectionGroupsUrl')
     if url:
         section_groups = _get_json(s, url)
         for section_group in section_groups['value']:
-            yield from get_sections(s, section_group)
+            sg_related_path = None
+            if related_path:
+                sg_related_path = related_path / section_group['displayName']
+            else:
+                sg_related_path = pathlib.Path(section_group['displayName'])
+            yield from get_sections(s, section_group, sg_related_path)
 
 
 def get_pages(s: Session, notebook, section_display_name = None):
@@ -65,17 +76,34 @@ def get_pages(s: Session, notebook, section_display_name = None):
         if (section_display_name != '*' and sectionName != section_display_name) :
             continue
 
-        logger.info(f"=================== section: {sectionName} ===================")
-        url = section['pagesUrl']
+        logger.info(f"=================== converting section: {sectionName} ===================")
+        parent_pages = []
+        current_level = 0
+        previous_page = ''
+        url = section['pagesUrl'] + '?pagelevel=true&orderby=order'
         while url:
             pages = _get_json(s, url)
             for page in pages['value']:
+                page_level =  page['level']
+                if page_level == current_level:
+                    previous_page = page['title']
+                elif page_level > current_level:
+                    current_level = page_level
+                    parent_pages.append(previous_page)
+                    previous_page = page['title']
+                else:
+                    current_level = page_level
+                    parent_pages = parent_pages[0:current_level]
+                    previous_page = page['title']
+
+                page['section_path'] = section['output_path']
+                page['parent_pages'] = parent_pages
                 yield page
             url = pages.get('@odata.nextLink')
 
 
 def get_page_content(s: Session, page):
-    return page, _get(s, page['contentUrl']).content
+    return _get(s, page['contentUrl']).content
 
 
 def get_attachment(s: Session, url):

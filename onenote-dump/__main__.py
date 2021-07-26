@@ -30,7 +30,7 @@ def main():
     logger.info('Writing to "%s"', output_dir)
 
     start_time = time.perf_counter()
-    pipe = pipeline.Pipeline(s, args.notebook, output_dir, 1)
+    pipe = pipeline.Pipeline(s, args.notebook, output_dir)
     pages = 0
     try:
         for page_count, page in enumerate(
@@ -42,15 +42,14 @@ def main():
             log_msg = f'Page {page_count}: {page["title"]}'
             if args.start_page is None or page_count >= args.start_page:
                 logger.info(log_msg)
-                pipe.add_page(page)
+                pipe.proc_page(page)
                 pages += 1
-                time.sleep(random.randint(3, 10))
+                # time.sleep(random.randint(3, 6))
             else:
                 logger.info(log_msg + ' [skipped]')
     except onenote.NotebookNotFound as e:
         logger.error(str(e))
 
-    pipe.done()
     stop_time = time.perf_counter()
     logger.info('Done!')
     logger.info('%s pages in %.1f seconds', pages, stop_time - start_time)

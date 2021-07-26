@@ -1,6 +1,4 @@
-import math
 import re
-from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
 
 from onenote import get_page_content
@@ -9,48 +7,34 @@ from convert import convert_page
 
 class Pipeline:
     def __init__(
-        self, onenote_session, notebook: str, out_dir: Path, parallel=3
+        self, onenote_session, notebook: str, base_dir: Path
     ):
         self.s = onenote_session
         self.notebook = notebook
+        self.base_dir = base_dir
         self.filename_re = re.compile(r'[<>:\"/\\\|\?\*#]')
         self.whitespace_re = re.compile(r'\s+')
-        self.out_dir = out_dir
-        self.out_dir.mkdir(parents=True, exist_ok=True)
-        self.executors = [
-            ThreadPoolExecutor(parallel, 'PipelinePage'),
-            ThreadPoolExecutor(parallel * 2, 'PipelineConvert'),
-            ThreadPoolExecutor(parallel, 'PipelineSave'),
-        ]
 
-    def add_page(self, page: dict):
-        future = self.executors[0].submit(get_page_content, self.s, page)
-        future.add_done_callback(self._submit_conversion)
+    def proc_page(self, page: dict):
+        content = get_page_content(self.s, page)
 
-    def _submit_conversion(self, future: Future):
-        page, content = future.result()
+        out_dir = self.base_dir / page['section_path']
+        for pp in page['parent_pages']:
+            out_dir = out_dir / self._filenamify(pp)
+        out_dir.mkdir(parents=True, exist_ok=True)
 
-        attach_dir = self.out_dir  / page['parentSection']['displayName'] / (self._filenamify(page['title']) + '.assets')
+        attach_dir = out_dir / (self._filenamify(page['title']) + '.assets')
         # does not mkdir here, only when attachment found.
-        future = self.executors[1].submit(
-            convert_page, page, content, self.notebook, self.s, attach_dir
-        )
-        future.add_done_callback(self._submit_save)
 
-    def _submit_save(self, future: Future):
-        page, content = future.result()
-        future = self.executors[2].submit(self._save_page, page, content)
-        return future.result()
+        _, content = convert_page(page, content, self.notebook, self.s, attach_dir)
 
-    def _save_page(self, page, content):
-        path = self.out_dir  / page['parentSection']['displayName'] / (self._filenamify(page['title']) + '.md')
+        return self._save_page(page, content, out_dir)
+
+    def _save_page(self, page, content, out_dir):
+        path = out_dir / (self._filenamify(page['title']) + '.md')
         path.write_text(content, encoding='utf-8')
 
     def _filenamify(self, s):
         s = self.filename_re.sub(' ', s)
         s = self.whitespace_re.sub(' ', s)
         return s.strip()
-
-    def done(self):
-        for executor in self.executors:
-            executor.shutdown()
