@@ -153,7 +153,8 @@ class Converter:
         return result
 
     def handle_td(self, tag, content):
-        return f'{content}|'
+        # in empty cell, the \n will break table structure.
+        return content.replace("\n", "") + '|'
 
     def handle_img(self, tag, content):
         url = tag.get('src')
