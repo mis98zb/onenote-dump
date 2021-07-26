@@ -2,14 +2,12 @@
 
 A utility for converting a Microsoft OneNote notebook to markdown.
 
-The output is targeted for compatibility with
-[Notable](https://github.com/notable/notable), which means:
+The output is targeted for compatibility with Typora, which means:
 
-* Markdown has metadata at the beginning
-* Links to attachments use `@attachment` syntax
-* Links to other notes use `@note` syntax
+* The same folder structure as section_group/section/page/subpage in onenote
+* Attachments are saved in {page name}.assets folder
 
-It retrieves OneNote data through the Microsoft graph API, so the notebook
+It retrieves OneNote data through the [Microsoft graph API](https://docs.microsoft.com/zh-cn/graph/onenote-get-content), so the notebook
 needs to be synchronized with the cloud.
 
 ## Installation
