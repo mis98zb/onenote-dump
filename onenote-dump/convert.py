@@ -31,27 +31,9 @@ class Converter:
         self.in_code_block = False
 
     def convert(self):
-        result = self.create_metadata()
         root = BeautifulSoup(self.content, 'html.parser')
-        result += self.handle_element(root)
+        result = self.handle_element(root)
         return result
-
-    def create_metadata(self):
-        tags = ['Notebooks/' + self.notebook]
-        parent_tag = self.page.get('parentSection', {}).get('displayName', '')
-        if parent_tag:
-            tags.append(parent_tag)
-        return textwrap.dedent(
-            f"""
-            ---
-            title: "{self.page.get('title')}"
-            created: '{self.page.get('createdDateTime')}'
-            modified: '{self.page.get('lastModifiedDateTime')}'
-            tags: [{', '.join(tags)}]
-            ---
-
-            """
-        ).lstrip()
 
     def handle_element(self, element):
         content = ''
