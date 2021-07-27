@@ -135,8 +135,11 @@ class Converter:
         return result
 
     def handle_td(self, tag, content):
-        # in empty cell, the \n will break table structure.
-        return content.replace("\n", "") + '|'
+        # in empty cell, the \n will break table structure, so we have to convert it back
+        content = content.replace("\n", "<br />")
+        # last <br /> should be ignored
+        content = content.strip().removesuffix("<br />")
+        return f'{content}|'
 
     def handle_img(self, tag, content):
         url = tag.get('src')
@@ -168,6 +171,7 @@ class Converter:
     def is_quote_block(tag):
         return (
             tag
+            and tag.get('style')
             and 'color:#595959' in tag.get('style')
             and 'font-style:italic' in tag.get('style')
         )
