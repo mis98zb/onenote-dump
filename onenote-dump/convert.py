@@ -144,10 +144,14 @@ class Converter:
     def handle_img(self, tag, content):
         url = tag.get('src')
         mime_type = tag.get('data-src-type')
-        if url.startswith('https://graph.microsoft.com') and self.s:
-            url = download_img(self.s, url, mime_type, self.attach_dir)
-        alt = tag.get('alt')
-        return f'![{alt}]({url})'
+        if url and mime_type:
+            if url.startswith('https://graph.microsoft.com') and self.s:
+                url = download_img(self.s, url, mime_type, self.attach_dir)
+            alt = tag.get('alt')
+            return f'![{alt}]({url})'
+        else:
+            # TODO log warning...
+            return ''
 
     def handle_object(self, tag, content):
         url = tag.get('data')
