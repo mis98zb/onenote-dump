@@ -18,22 +18,22 @@ class NotebookNotFound(Exception):
         notebooks = []
         if s:
             try:
-                notebooks = get_notebooks(s)
+                notebooks = _get_notebooks(s)
                 names = [n['displayName'] for n in notebooks['value']]
                 return 'Maybe:\n' + '\n'.join(names) + '\n'
             except Exception:
                 return 'Possible notebooks unknown.'
 
 
-def get_notebook_pages(s: Session, notebook_display_name, section_display_name = '*'):
-    notebooks = get_notebooks(s)
+def get_notebook_pages(s: Session, notebook_display_name, section_group_display_name = '*', section_display_name = '*'):
+    notebooks = _get_notebooks(s)
     notebook = find_notebook(notebooks, notebook_display_name)
     if notebook is None:
         raise NotebookNotFound(notebook_display_name, s)
-    yield from get_pages(s, notebook, section_display_name)
+    yield from get_pages(s, notebook, section_group_display_name, section_display_name)
 
 
-def get_notebooks(s: Session):
+def _get_notebooks(s: Session):
     return _get_json(s, BASE_URL + 'notebooks')
 
 
@@ -44,18 +44,22 @@ def find_notebook(notebooks, display_name):
     return None
 
 
-def get_sections(s: Session, parent, related_path = None):
+def get_sections(s: Session, parent, section_group_display_name, section_display_name, related_path = None):
     """Get all sections, recursively."""
     # section
-    url = parent.get('sectionsUrl')
-    if url:
-        sections = _get_json(s, url)
-        for section in sections['value']:
-            if related_path:
-                section['output_path'] = related_path / section['displayName']
-            else:
-                section['output_path'] = pathlib.Path(section['displayName'])
-            yield section
+    if related_path or (related_path is None and section_group_display_name == '/'):
+        url = parent.get('sectionsUrl')
+        if url:
+            sections = _get_json(s, url)
+            for section in sections['value']:
+                if related_path:
+                    section['output_path'] = related_path / section['displayName']
+                else:
+                    section['output_path'] = pathlib.Path(section['displayName'])
+                if section_display_name != '*' and section_display_name != section['displayName']:
+                    logger.info(f"ignore section {section['output_path']}")
+                    continue
+                yield section
 
     # section group
     url = parent.get('sectionGroupsUrl')
@@ -67,16 +71,15 @@ def get_sections(s: Session, parent, related_path = None):
                 sg_related_path = related_path / section_group['displayName']
             else:
                 sg_related_path = pathlib.Path(section_group['displayName'])
-            yield from get_sections(s, section_group, sg_related_path)
+            if section_group_display_name != '*' and section_group_display_name != str(sg_related_path):
+                logger.info(f"ignore section group {sg_related_path}")
+                continue
+            yield from get_sections(s, section_group, section_group_display_name, section_display_name, sg_related_path)
 
 
-def get_pages(s: Session, notebook, section_display_name = None):
-    for section in get_sections(s, notebook):
-        sectionName = section['displayName']
-        if (section_display_name != '*' and sectionName != section_display_name) :
-            continue
-
-        logger.info(f"=================== converting section: {sectionName} ===================")
+def get_pages(s: Session, notebook, section_group_display_name, section_display_name):
+    for section in get_sections(s, notebook, section_group_display_name, section_display_name):
+        logger.info(f"=================== converting section: {section['displayName']} ===================")
         parent_pages = []
         current_level = 0
         previous_page = ''
@@ -120,7 +123,7 @@ def _get_json(s: Session, url):
 # we just have to guess at how long to wait, and exponentially back off if we
 # guess wrong.
 
-MIN_RETRY_WAIT = timedelta(minutes=5).total_seconds()
+MIN_RETRY_WAIT = timedelta(minutes=15).total_seconds()
 
 
 def _is_too_many_requests(e: Exception):

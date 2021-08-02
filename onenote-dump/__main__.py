@@ -34,7 +34,7 @@ def main():
     pages = 0
     try:
         for page_count, page in enumerate(
-            onenote.get_notebook_pages(s, args.notebook, args.section), 1
+            onenote.get_notebook_pages(s, args.notebook, args.section_group, args.section), 1
         ):
             if args.max_pages and page_count > args.max_pages:
                 break
@@ -59,6 +59,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('output_dir', help='directory to which to output')
     parser.add_argument('notebook', help='display name of notebook to dump')
+    parser.add_argument('section_group', help='display name of section group to dump. * for all, / for root, group/sub_group for sub groups.')
     parser.add_argument('section', help='display name of section to dump. if * is given, all sections will be dump.')
     parser.add_argument(
         '-m', '--max-pages', type=int, help='max pages to dump'
